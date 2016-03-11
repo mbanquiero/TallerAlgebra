@@ -1,0 +1,333 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<script type="text/javascript">
+
+var canvas;
+var ctx;
+
+//
+// Ejemplo de colisiones
+//
+
+var time = 0;
+var elapsed_time = 0.01;
+
+
+
+var OX = 200;
+var OY = 100;
+var DX = 600;
+var DY = 500;
+
+
+var vel_ini = {x:0,y:0};
+var pos_ini = {x:DX/2 + 0.5,y:10};
+
+var acel = {x:0,y:150};
+var vel = vel_ini;
+var pos = pos_ini;
+var radio = 7;
+
+var circulos = new Array();
+var cant_circulos = 0;
+var cant_c0 = 0;
+
+var lineas = new Array();
+var cant_lineas = 0;
+var dc;
+
+
+function init()
+{
+	cant_lineas = 0;
+	cant_circulos = 0
+	var cant_col = 16;
+	dc = (DX-100)/cant_col;
+
+	for(i=0;i<cant_col;++i)
+		lineas[cant_lineas++] = { x0:50+i*dc,		y0:300,		x1:50+i*dc,		y1:DY};
+
+	var cant_fil = 12;
+	cant_col = 1;
+	for(j=0;j<cant_fil;++j)
+	{
+		var x0 = DX/2 -  ((cant_col-1) * dc) / 2;
+		for(i=0;i<cant_col;++i)
+			circulos[cant_circulos++] = { x:x0+i*dc,	y:50+j*(2*radio+6) , r:1 , clr:'rgba(0,0,0,255)'};
+
+		cant_col++;
+	}
+
+	// guardo la cantidad de circulos original
+	cant_c0 = cant_circulos;
+}
+
+
+function add(u , v)
+{
+	return {x: u.x + v.x , y:u.y + v.y};	
+}
+
+
+function substract(u , v)
+{
+	return {x: u.x - v.x , y:u.y - v.y};	
+}
+
+function mul(u , k)
+{
+	return {x: u.x*k , y:u.y*k};	
+}
+
+function dot(u , v)
+{
+	return u.x*v.x+u.y*v.y;	
+}
+
+function length(u)
+{
+	return Math.sqrt(u.x*u.x + u.y*u.y);	
+}
+
+function normalize(u)
+{
+	var len = length(u);
+	u.x /= len;	
+	u.y /= len;	
+}
+
+
+function normal(u)
+{
+	return {x: -u.y , y:u.x};
+}
+
+function reflect(i,n)
+{
+	
+	// v = i - 2 * dot(i, n) * n
+	return add(i , mul(n,-2*dot(i, n)));
+}
+
+function ray_circle(p0, Dir, centro, radio) {
+    // necesito que Dir este normalizado, si no esta puedo hacer esta transformacion
+    // r = p0 + (t*ld) * (Dir * (1/ld))
+    // r = p0 + k D
+    // donde k = t*ld
+    // D = Dir * (1/ld)
+
+
+    var ld = length(Dir);
+    var D = mul(Dir, 1 / ld);
+
+    // Ahora si r = p0 + k D
+
+    var rta = -1;
+    // verifico si interseta con la esfera
+    var aux = add(p0, mul(centro, -1));
+    var c = dot(aux, aux) - radio * radio;
+    var B = 2 * dot(D, aux);
+    var disc = B * B - 4 * c;
+    if (disc >= 0) {
+        var t0 = (-B - Math.sqrt(disc)) / 2;
+        var t1 = (-B + Math.sqrt(disc)) / 2;
+
+        if (t0 > t1) {
+            var aux_t = t1;
+            t1 = t0;
+            t0 = aux_t;
+        }
+
+        // entra en la esfera por t0 y sale por t1. 
+        // se supone que el punto p0 NO esta dentro de la esfera, asi que t0, t1 son ambos positivos o ambos negativos
+        // devuelve en base al D original, es decir hay que escalar segun ld
+        rta = t0 / ld;
+    }
+    return rta;
+}
+
+
+function matriz_det(M)
+{
+	return M.a11*M.a22 - M.a12*M.a21;
+}
+
+
+function matriz_X(M,B)
+{
+	return M.a22*B.x-M.a12*B.y;
+}
+
+
+function matriz_Y(M,B)
+{
+	return M.a11*B.y-M.a21*B.x;
+}
+
+
+
+function ray_segment(p0,dir_0,p1,dir_1)
+{
+	var rta = -1;
+	var M = {	a11: dir_0.x , a12:-dir_1.x ,
+				a21: dir_0.y , a22:-dir_1.y
+			}
+
+	var det = matriz_det(M);
+	if(Math.abs(det)>0.0001)
+	{
+		var B = {x:p1.x-p0.x , y:p1.y-p0.y};
+		var t = matriz_X(M,B) / det;
+		var k = matriz_Y(M,B) / det;
+		if(k>=0 && k<=1 && t>=0 && t<=1)
+			rta = t;
+	}
+	return rta;
+}
+
+
+function draw_obj() 
+{
+	// dibuja los objetos 
+	for(i=0; i<cant_circulos; ++i)
+	{
+
+		ctx.fillStyle = circulos[i].clr;
+		ctx.beginPath();
+		ctx.arc(OX + circulos[i].x, OY + circulos[i].y, circulos[i].r, 0, Math.PI*2,true); 
+		ctx.closePath();
+		ctx.fill();		
+	}
+
+
+
+	ctx.lineWidth = 5;
+	for(i=0; i<cant_lineas; ++i)
+	{
+
+		ctx.beginPath();
+		ctx.moveTo(OX + lineas[i].x0, OY + lineas[i].y0); 
+		ctx.lineTo(OX + lineas[i].x1, OY + lineas[i].y1); 
+		ctx.closePath();
+		ctx.stroke();		
+	}
+	ctx.lineWidth = 1;
+
+}
+
+
+
+function draw() 
+{
+	if (canvas.getContext)
+	{
+		ctx.fillStyle = 'rgba(255,255,255,255)';
+		ctx.fillRect(0,0,1000,700);
+		ctx.fillStyle = 'rgba(192,255,192,255)';
+		ctx.fillRect(OX ,OY ,DX,DY);
+		time+=elapsed_time;
+
+		// dibujo el fondo
+		draw_obj();
+
+		// integro la velocidad
+		var pos_ant = pos;
+		vel = add(vel , mul(acel,elapsed_time));
+		var D = mul(vel,elapsed_time);
+		pos = add(pos , D);
+
+
+		// quiero ir de la pos_ant a la pos nueva
+		// Verifico las intersecciones contra todos los objetos
+		for(i=0;i<cant_circulos;++i)
+		{
+			// verifico la interseccion con el circulo i
+			var c = {x:circulos[i].x , y:circulos[i].y};		// centro de la esfera
+			var t = ray_circle(pos_ant,D,c,circulos[i].r+radio);
+			if(t>=0 && t<=1)
+			{
+				D = mul(D,t);
+				// Calculo el punto de interseccion
+				var Ip= add(pos_ant , D);
+				
+				if(i>=cant_c0 && Ip.y>=300)
+				{
+					// hizo colision con una bolita en stack, queda pegada
+					circulos[cant_circulos++] = { x:Ip.x ,y:Ip.y, r:radio , clr:'rgba(255,0,255,255)'};
+					// inicio otra bolita
+					vel = vel_ini;
+					pos = pos_ini;
+					pos.x += 2*(Math.random()-0.5);
+				}
+				else
+				{
+					// calculo la normal en el pto de interseccion
+					var N = substract(Ip,c);
+					normalize(N);
+					// Calculo la direccion de rebote
+					D = reflect(D,N);
+					// Actualizo la nueva posicion, utilizando el tiempo en restante, para aplicarlo
+					// a la direccion de rebote
+					var rtime = elapsed_time*(1-t);		// tiempo restante
+					pos = add(Ip , mul(D,rtime));
+					// actualizo la velocidad
+					normalize(D);
+					vel = mul(D,length(vel)*0.4);
+				}
+
+				if (length(substract(pos, pos_ant)) < 0.01)
+				    pos.x += 2 * (Math.random() - 0.5);
+
+				// no soporta mas colisiones en el mismo frame
+				i = cant_circulos;
+			}
+		}
+
+		if(pos.y>DY-20)
+		{
+			// llego al fondo, esta bolita la dejo en el stack
+			circulos[cant_circulos++] = { x:pos.x ,y:pos.y, r:radio , clr:'rgba(255,0,255,255)'};
+			// inicio otra bolita
+			vel = vel_ini;
+			pos = pos_ini;
+		}
+		else
+		if(pos.y>300)
+		{
+			// ajusto la posicion a un multiplo del stack
+			acel.x = vel.x = 0;
+			var i = Math.round((pos.x-50-dc/2)/dc);
+			pos.x = 50 +dc/2 + i*dc;
+		}
+
+		// dibujo la bolita
+		ctx.fillStyle = 'rgba(255,0,0,255)';
+		ctx.beginPath();
+		ctx.arc(OX + pos.x, OY + pos.y, radio , 0, Math.PI*2,true); 
+		ctx.closePath();
+		ctx.fill();		
+
+
+	}
+}
+
+function animate()
+{   
+	init();
+	canvas = document.getElementById('mycanvas');
+	ctx = canvas.getContext('2d');
+	setInterval(draw, 1);
+} 
+
+
+
+
+</script>
+</head>
+<body onload="animate();">
+	<canvas id="mycanvas" width="1000" height="700"></canvas>
+
+</body>
+</html>
+ 

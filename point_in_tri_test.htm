@@ -1,0 +1,281 @@
+
+
+<!DOCTYPE HTML>
+<html>
+<head>
+<script type="text/javascript">
+
+var canvas;
+var ctx;
+
+// 
+// Point in Triangle Test
+//
+
+
+var A = {x:350, y:120};
+var B = {x:50, y:530};
+var C = {x:720, y:200};
+
+var P = {x:50, y:100};
+
+// Algebra de vectores
+// -------------------------------------------------------------
+
+function add(u , v)
+{
+	return {x: u.x + v.x , y:u.y + v.y};	
+}
+
+
+function substract(u , v)
+{
+	return {x: u.x - v.x , y:u.y - v.y};	
+}
+
+function mul(u , k)
+{
+	return {x: u.x*k , y:u.y*k};	
+}
+
+function dot(u , v)
+{
+	return u.x*v.x+u.y*v.y;	
+}
+
+function length(u)
+{
+	return Math.sqrt(u.x*u.x + u.y*u.y);	
+}
+
+function normalize(u)
+{
+	var len = length(u);
+	u.x /= len;	
+	u.y /= len;	
+}
+
+
+function normal(u)
+{
+	return {x: -u.y , y:u.x};
+}
+
+
+
+
+// Coordenadas barycentricas
+// -------------------------------------------------------------
+
+function barycentric_a( v1x, v1y , v2x , v2y ,v3x , v3y ,px,py)
+{
+	var a;
+
+	var A = v1x - v3x;
+	var B = v2x - v3x;
+	var C = v3x - px;
+
+	var D = v1y - v3y;
+	var E = v2y - v3y;
+	var F = v3y - py;
+
+	var G = 0;
+	var H = 0;
+	var I = 0;
+
+	if(A==0 && B==0)
+	{
+		var temp = A;
+		A = D;
+		D = temp;
+
+		temp = B;
+		B = E;
+		E = temp;
+
+		temp = C;
+		C = F;
+		F = temp;
+	}
+
+
+	a = (B*(F+I) - C*(E+H)) / (A*(E+H) - B*(D+G));
+	return a;
+}
+
+function barycentric_b( v1x, v1y , v2x , v2y ,v3x , v3y ,px,py)
+{
+	var b;
+
+	var A = v1x - v3x;
+	var B = v2x - v3x;
+	var C = v3x - px;
+
+	var D = v1y - v3y;
+	var E = v2y - v3y;
+	var F = v3y - py;
+
+	var G = 0;
+	var H = 0;
+	var I = 0;
+
+	if(A==0 && B==0)
+	{
+		var temp = A;
+		A = D;
+		D = temp;
+
+		temp = B;
+		B = E;
+		E = temp;
+
+		temp = C;
+		C = F;
+		F = temp;
+	}
+
+	b = (A*(F+I) - C*(D+G)) / (B*(D+G) - A*(E+H));
+	return b;
+}
+
+
+
+function draw() 
+{
+	if (canvas.getContext)
+	{
+		ctx.fillStyle = 'rgba(255,255,255,255)';
+		ctx.fillRect(0,0,1000,700);
+
+		// computo las coordenadas barycentricas del punto
+		var a = barycentric_a(A.x,A.y,B.x,B.y,C.x,C.y,P.x,P.y);			// gamma
+		var b = barycentric_b(A.x,A.y,B.x,B.y,C.x,C.y,P.x,P.y);			// beta
+		var g = 1 - b - a;												// alpha
+		var pto_adentro = 0;
+		if((b >= 0) && (g >= 0) && (b +g <= 1))
+		{
+			// punto adentro del triangulo
+			pto_adentro = 1;
+		}
+
+
+
+		// dibujo el triangulo
+		ctx.fillStyle = pto_adentro ? 'rgba(255,255,0,255)' : 'rgba(255,0,0,255)';
+		ctx.beginPath();
+		ctx.moveTo(A.x, A.y); 
+		ctx.lineTo(B.x, B.y); 
+		ctx.lineTo(C.x, C.y); 
+		ctx.lineTo(A.x, A.y); 
+		ctx.closePath();
+		ctx.fill();		
+
+
+		// dibujo los 3 puntos
+		ctx.fillStyle = 'rgba(120,50,50,255)';
+		ctx.beginPath();
+		ctx.arc(A.x, A.y, 5, 0, Math.PI*2,true); 
+		ctx.closePath();
+		ctx.stroke();		
+		ctx.beginPath();
+		ctx.arc(B.x, B.y, 5, 0, Math.PI*2,true); 
+		ctx.closePath();
+		ctx.stroke();		
+		ctx.beginPath();
+		ctx.arc(C.x, C.y, 5, 0, Math.PI*2,true); 
+		ctx.closePath();
+		ctx.stroke();		
+
+		// dibujo el punto
+		ctx.fillStyle = 'rgba(0,0,0,255)';
+		ctx.beginPath();
+		ctx.arc(P.x, P.y, 5, 0, Math.PI*2,true); 
+		ctx.closePath();
+		ctx.fill();		
+
+
+		// dibujo el vector 
+		var dir_b = substract(B,A);
+		var pto_b = add(A , mul(dir_b , b));
+		ctx.strokeStyle = 'rgba(255,120,120,255)';
+		ctx.lineWidth = 4;
+		ctx.beginPath();
+		ctx.moveTo(A.x,A.y);
+		ctx.lineTo(pto_b.x,pto_b.y);
+		ctx.closePath();
+		ctx.stroke();		
+
+
+		var dir_g = substract(C,A);
+		var pto_g = add(A , mul(dir_g , g));
+		ctx.strokeStyle = 'rgba(120,255,120,255)';
+		ctx.beginPath();
+		ctx.moveTo(A.x,A.y);
+		ctx.lineTo(pto_g.x,pto_g.y);
+		ctx.closePath();
+		ctx.stroke();		
+
+		ctx.lineWidth = 1;
+
+		if(pto_adentro)		
+		{
+
+			ctx.strokeStyle = 'rgba(0,0,0,255)';
+			ctx.beginPath();
+			ctx.setLineDash([5,5]);
+			ctx.moveTo(P.x,P.y);
+			ctx.lineTo(pto_b.x,pto_b.y);
+			ctx.closePath();
+			ctx.stroke();		
+
+			ctx.beginPath();
+			ctx.moveTo(P.x,P.y);
+			ctx.lineTo(pto_g.x,pto_g.y);
+			ctx.closePath();
+			ctx.stroke();		
+
+			ctx.setLineDash([0,0]);
+		}
+
+
+		ctx.font = "12px Arial";
+		ctx.fillText("a = "+ a.toString(), 10, 20);
+		ctx.fillText("b = "+ b.toString(), 10, 40);
+		ctx.fillText("g = "+ g.toString(), 10, 60);
+
+		ctx.fillText("A", A.x, A.y-10);
+		ctx.fillText("B", B.x, B.y-10);
+		ctx.fillText("C", C.x, C.y-10);
+
+
+
+	}
+}
+
+
+function onMouseMove() 
+{
+	P.x = window.event.offsetX;
+	P.y = window.event.offsetY;
+	draw();
+}
+
+function init()
+{   
+	canvas = document.getElementById('mycanvas');
+	ctx = canvas.getContext('2d');
+	document.addEventListener( "mousemove", onMouseMove, true);
+	draw();
+	// 549 351 811 6688
+} 
+
+
+
+</script>
+</head>
+<body onload="init();">
+	<canvas id="mycanvas" width="1000" height="700"></canvas>
+
+</body>
+</html>
+ 

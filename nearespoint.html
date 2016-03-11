@@ -1,0 +1,79 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<script type="text/javascript">
+
+var canvas;
+var ctx;
+
+//
+// Ejemplo de nearest point sampling
+//
+
+
+var diff_map = [];
+
+function CreateTexture()
+{
+	for(var  i=0;i<4;++i)
+	for(var j=0;j<4;++j)
+		diff_map[i+4*j] = {r:128 , g:128, b:128};
+		
+	diff_map[1+4*1] = {r:255 , g:0, b:0};
+	diff_map[2+4*1] = {r:0 , g:255, b:0};
+	diff_map[1+4*2] = {r:0 , g:0, b:255};
+	diff_map[2+4*2] = {r:255 , g:255, b:255};
+}
+
+function tex2d(u, v)
+{
+	var du = 4;
+	var dv = 4;
+	var i = u*du|0;
+	var j = v*dv|0;
+	if(i>=du)
+		i = 0;
+	if(j>=dv)
+		j = 0;
+	var clr =  diff_map[i+dv*j];
+	return 'rgba(' + clr.r.toString() + ',' + clr.g.toString() + ',' + clr.b.toString() + ',255)';	
+}
+
+
+
+function draw() 
+{
+	if (canvas.getContext)
+	{
+		ctx.fillStyle = 'rgba(240,240,240,255)';
+		ctx.fillRect(0,0,1000,800);
+
+		var k = 5;
+		for(var i=0;i<=125;++i)
+		for(var j=0;j<=125;++j)
+		{
+			ctx.fillStyle = tex2d(i/125,j/125);
+			ctx.fillRect(10+i*k,10+j*k,k,k);
+		}
+	}
+}
+
+function animate()
+{   
+	canvas = document.getElementById('mycanvas');
+	ctx = canvas.getContext('2d');
+	CreateTexture();
+	draw();
+} 
+
+
+
+
+</script>
+</head>
+<body onload="animate();">
+	<canvas id="mycanvas" width="1000" height="700"></canvas>
+
+</body>
+</html>
+ 

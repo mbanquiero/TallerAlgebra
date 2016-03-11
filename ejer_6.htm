@@ -1,0 +1,152 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<script type="text/javascript">
+
+
+var canvas;
+var ctx;
+
+//
+// Ejemplo de graficar una funcion de 2 variables 
+// y = F(x,z) 
+// En este caso la x y z variaban en cierto intervalo, y se calcula 
+// para cada punto el valor de la funcion que representa la altura de la superficie
+// en dicho punto. Ese valor se usa para generar la superficie. 
+
+// Por ultimo:
+// La funcion tambbien depende del tiempo t, para generar una animacion
+
+var t = 0;			// tiempo
+var aspect = 1;
+var escala = 1;
+
+var d = 600;
+var OX = 500;
+var OY = 350;
+
+
+function Transform_X(x,y,z)
+{
+	// Perspectiva: Proyecto a Screen Space
+	var xs = x/(z + d ) * d *escala;
+
+	// ortogonal
+	//xs = x;
+	return xs;
+}
+
+function Transform_Y(x,y,z)
+{
+	// Perspectiva: Proyecto a Screen Space
+	var ys = y/(z + d ) * d *escala * aspect;
+	// ortogonal
+	//ys = y;
+	return ys;
+}
+
+
+// Proyecta y Dibuja un triangulo
+function DrawTri(x0,y0,z0,x1,y1,z1,x2,y2,z2)
+{
+
+	ctx.beginPath();
+
+	// Primer punto
+	var X = Transform_X(x0,y0,z0);
+	var Y = Transform_Y(x0,y0,z0);
+	ctx.moveTo(OX + X, OY - Y);
+
+	// Segundo punto
+	X = Transform_X(x1,y1,z1);
+	Y = Transform_Y(x1,y1,z1);
+	ctx.lineTo(OX + X, OY - Y);
+
+	// Tercer punto
+	X = Transform_X(x2,y2,z2);
+	Y = Transform_Y(x2,y2,z2);
+	ctx.lineTo(OX + X, OY - Y);
+
+
+	ctx.closePath();
+	ctx.fill();
+	//ctx.stroke();
+}
+
+
+// Dibuja una linea
+function Line3d(x0,y0,z0,x1,y1,z1)
+{
+
+	ctx.beginPath();
+
+	// Primer punto
+	var X = Transform_X(x0,y0,z0);
+	var Y = Transform_Y(x0,y0,z0);
+	ctx.moveTo(OX + X, OY - Y);
+
+	// Segundo punto
+	X = Transform_X(x1,y1,z1);
+	Y = Transform_Y(x1,y1,z1);
+	ctx.lineTo(OX + X, OY - Y);
+	ctx.closePath();
+	ctx.stroke();
+
+}
+
+
+function F(x,y)
+{
+	return Math.sin(x/100 - y/100 +t)*(40+t);
+	//return Math.sin(x/100+t)*40 - Math.cos(y/100+t)*40 ;
+}
+
+function draw() 
+{
+	if (canvas.getContext)
+	{
+		ctx.fillStyle = 'rgba(255,255,255,1)';
+		ctx.fillRect(0,0,1000,800);
+		t+=0.5;
+		// draw3dBox(-300,-200,50,300,300,300);
+
+		var dx = 20;
+		var dz = 20;
+		for(var x=-400;x<400;x+=dx)
+		for(var z=-400;z<400;z+=dz)
+		{
+			//var y0 = Math.sin(x/100+z/100 + t)*40;
+			//var y1 = Math.sin((x+dx)/100 + (z)/100 + t)*40;
+			//var y2 = Math.sin((x)/100 + (z+dz)/100 + t)*40;
+			var y0 = F(x,z);
+			var y1 = F(x+dx,z);
+			var y2 = F(x,z+dz);
+
+
+			Line3d(x,y0,z,x+dx,y1,z);
+			
+			Line3d(x,y0,z,x,y2,z+dz);
+		}
+
+
+	}
+}
+
+function animate()
+{   
+	canvas = document.getElementById('mycanvas');
+	ctx = canvas.getContext('2d');
+	setInterval(draw, 100);
+} 
+
+
+
+
+</script>
+</head>
+<body onload="animate();">
+	<canvas id="mycanvas" width="1000" height="700"></canvas>
+
+</body>
+</html>
+ 

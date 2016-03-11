@@ -1,0 +1,190 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<script type="text/javascript">
+
+var canvas;
+var ctx;
+
+//
+// Ejemplo de proyeccion de un cubo
+//
+
+// Vamos a utilizar la transformcion 
+// T(x,y,z) = (x/z,y/z)
+
+// Tambien tenemos que escalar a pixeles, para ello definimos una cierta escala arbitraria
+var escala = 0.3;
+
+
+// Tambiene tenemos que ajustar el origen para quede aprox. en el centro de pantalla
+// Para ello definimos: 
+var OX = 500;
+var OY = 350;
+
+// El aspect ratio es la relacion entre el ancho y el alto de la pantalla
+var aspect = 1024.0/768.0;
+
+
+var raiz_3 = 1.732050807568;
+
+function Transform_X(x,y,z)
+{
+	// Isometrica: Proyecto a Screen Space
+	var xs = raiz_3* (y - x);
+	return xs*escala;
+}
+
+function Transform_Y(x,y,z)
+{
+	// Isometrica: Proyecto a Screen Space
+	var ys = y + x - z;
+	return ys * escala * aspect;
+}
+
+
+// Proyecta y Dibuja un triangulo
+function DrawTri(x0,y0,z0,x1,y1,z1,x2,y2,z2)
+{
+
+	ctx.beginPath();
+
+	// Primer punto
+	var X = Transform_X(x0,y0,z0);
+	var Y = Transform_Y(x0,y0,z0);
+	ctx.moveTo(OX + X, OY - Y);
+
+	// Segundo punto
+	X = Transform_X(x1,y1,z1);
+	Y = Transform_Y(x1,y1,z1);
+	ctx.lineTo(OX + X, OY - Y);
+
+	// Tercer punto
+	X = Transform_X(x2,y2,z2);
+	Y = Transform_Y(x2,y2,z2);
+	ctx.lineTo(OX + X, OY - Y);
+
+
+	ctx.closePath();
+	ctx.fill();
+}
+
+
+// Dibuja una linea
+function Line3d(x0,y0,z0,x1,y1,z1)
+{
+
+	ctx.beginPath();
+
+	// Primer punto
+	var X = Transform_X(x0,y0,z0);
+	var Y = Transform_Y(x0,y0,z0);
+	ctx.moveTo(OX + X, OY - Y);
+
+	// Segundo punto
+	X = Transform_X(x1,y1,z1);
+	Y = Transform_Y(x1,y1,z1);
+	ctx.lineTo(OX + X, OY - Y);
+	ctx.closePath();
+	ctx.stroke();
+
+}
+
+
+function draw3dBox(x0,y0,z0,dx,dy,dz)
+{
+
+	var x1 = x0 + dx;
+	var y1 = y0;
+	var z1 = z0;
+
+	var x2 = x0 + dx;
+	var y2 = y0 + dy;
+	var z2 = z0;
+
+	var x3 = x0;
+	var y3 = y0 + dy;
+	var z3 = z0;
+
+	var x4 = x0;
+	var y4 = y0;
+	var z4 = z0 + dz;
+
+	var x5 = x0 + dx;
+	var y5 = y0;
+	var z5 = z0 + dz;
+
+	var x6 = x0 + dx;
+	var y6 = y0 + dy;
+	var z6 = z0 + dz;
+
+	var x7 = x0;
+	var y7 = y0 + dy;
+	var z7 = z0 + dz;
+
+
+	ctx.fillStyle = 'rgba(120,255,120,0.4)';
+	DrawTri(x0,y0,z0,x1,y1,z1,x2,y2,z2);
+	DrawTri(x0,y0,z0,x2,y2,z2,x3,y3,z3);
+
+
+	ctx.fillStyle = 'rgba(255,120,120,0.4)';
+	DrawTri(x4,y4,z4,x5,y5,z5,x6,y6,z6);
+	DrawTri(x4,y4,z4,x6,y6,z6,x7,y7,z7);
+
+	ctx.fillStyle = 'rgba(255,255,120,0.4)';
+	DrawTri(x0,y0,z0,x1,y1,z1,x5,y5,z5);
+	DrawTri(x0,y0,z0,x5,y5,z5,x4,y4,z4);
+
+	ctx.fillStyle = 'rgba(120,120,120,0.4)';
+	DrawTri(x3,y3,z3,x2,y2,z2,x6,y6,z6);
+	DrawTri(x3,y3,z3,x6,y6,z6,x7,y7,z7);
+
+
+ 	Line3d(x0,y0,z0, x1,y1,z1);
+ 	Line3d(x1,y1,z1, x2,y2,z2);
+ 	Line3d(x2,y2,z2, x3,y3,z3);
+ 	Line3d(x3,y3,z3, x0,y0,z0);
+	
+ 	Line3d(x4,y4,z4, x5,y5,z5);
+ 	Line3d(x5,y5,z5, x6,y6,z6);
+ 	Line3d(x6,y6,z6, x7,y7,z7);
+ 	Line3d(x7,y7,z7, x4,y4,z4);
+
+ 	Line3d(x0,y0,z0, x4,y4,z4);
+ 	Line3d(x1,y1,z1, x5,y5,z5);
+ 	Line3d(x2,y2,z2, x6,y6,z6);
+ 	Line3d(x3,y3,z3, x7,y7,z7);
+
+}
+
+
+function draw() 
+{
+	if (canvas.getContext)
+	{
+		ctx.fillStyle = 'rgba(255,255,255,1)';
+		ctx.fillRect(0,0,1000,800);
+		draw3dBox(0,0,0,300,300,300);
+
+	}
+}
+
+function animate()
+{   
+	canvas = document.getElementById('mycanvas');
+	ctx = canvas.getContext('2d');
+	setInterval(draw, 100);
+} 
+
+
+
+
+</script>
+</head>
+<body onload="animate();">
+	<canvas id="mycanvas" width="1000" height="700"></canvas>
+
+</body>
+</html>
+ 

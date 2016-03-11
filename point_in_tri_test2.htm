@@ -1,0 +1,183 @@
+
+
+<!DOCTYPE HTML>
+<html>
+<head>
+<script type="text/javascript">
+
+var canvas;
+var ctx;
+
+// 
+// Point in Triangle Test
+//
+
+
+var A = {x:350, y:120};
+var B = {x:50, y:530};
+var C = {x:720, y:200};
+
+var P = {x:50, y:100};
+
+// Algebra de vectores
+// -------------------------------------------------------------
+
+function add(u , v)
+{
+	return {x: u.x + v.x , y:u.y + v.y};	
+}
+
+
+function substract(u , v)
+{
+	return {x: u.x - v.x , y:u.y - v.y};	
+}
+
+function substract3d(u , v)
+{
+	return {x: u.x - v.x , y:u.y - v.y , z:u.z - v.z};	
+}
+
+function mul(u , k)
+{
+	return {x: u.x*k , y:u.y*k};	
+}
+
+function dot(u , v)
+{
+	return u.x*v.x+u.y*v.y;	
+}
+
+function dot3d(u , v)
+{
+	return u.x*v.x+u.y*v.y+u.z*v.z;	
+}
+
+function length(u)
+{
+	return Math.sqrt(u.x*u.x + u.y*u.y);	
+}
+
+function normalize(u)
+{
+	var len = length(u);
+	u.x /= len;	
+	u.y /= len;	
+}
+
+
+function normal(u)
+{
+	return {x: -u.y , y:u.x};
+}
+
+function cross(u , v)
+{
+   return  {	x:	u.y * v.z - u.z * v.y ,
+				y:	u.z * v.x - u.x * v.z ,
+				z:	u.x * v.y - u.y * v.x	};
+}
+
+
+// devuelve 1 si el punto p1 y el p2 estan del mismo lado del segmento a-b
+function mismo_lado(p1,p2, a,b)
+{
+	var rta = 0;
+    var U = cross(substract3d(b,a), substract3d(p1,a));
+    var V = cross(substract3d(b,a), substract3d(p2,a));
+    if(dot3d(U, V) >= 0)
+		rta = 1;
+	return rta;
+}
+
+function pto_inside(q,p1,p2,p3)
+{
+	var rta = 0 
+	// los paso a 3d con Z = 0
+	var p = {x:q.x , y:q.y , z:0};
+	var a = {x:p1.x , y:p1.y , z:0};
+	var b = {x:p2.x , y:p2.y , z:0};
+	var c = {x:p3.x , y:p3.y , z:0};
+    if(mismo_lado(p,a, b,c) && mismo_lado(p,b, a,c) && mismo_lado(p,c, a,b))
+		rta = 1;
+	return rta;
+}
+
+function draw() 
+{
+	if (canvas.getContext)
+	{
+		ctx.fillStyle = 'rgba(255,255,255,255)';
+		ctx.fillRect(0,0,1000,700);
+
+		var pto_adentro = pto_inside(P,A,B,C);
+
+		// dibujo el triangulo
+		ctx.fillStyle = pto_adentro ? 'rgba(255,255,0,255)' : 'rgba(255,0,0,255)';
+		ctx.beginPath();
+		ctx.moveTo(A.x, A.y); 
+		ctx.lineTo(B.x, B.y); 
+		ctx.lineTo(C.x, C.y); 
+		ctx.lineTo(A.x, A.y); 
+		ctx.closePath();
+		ctx.fill();		
+
+
+		// dibujo los 3 puntos
+		ctx.fillStyle = 'rgba(120,50,50,255)';
+		ctx.beginPath();
+		ctx.arc(A.x, A.y, 5, 0, Math.PI*2,true); 
+		ctx.closePath();
+		ctx.stroke();		
+		ctx.beginPath();
+		ctx.arc(B.x, B.y, 5, 0, Math.PI*2,true); 
+		ctx.closePath();
+		ctx.stroke();		
+		ctx.beginPath();
+		ctx.arc(C.x, C.y, 5, 0, Math.PI*2,true); 
+		ctx.closePath();
+		ctx.stroke();		
+
+		// dibujo el punto
+		ctx.fillStyle = 'rgba(0,0,0,255)';
+		ctx.beginPath();
+		ctx.arc(P.x, P.y, 5, 0, Math.PI*2,true); 
+		ctx.closePath();
+		ctx.fill();		
+
+		ctx.font = "12px Arial";
+		ctx.fillText("A", A.x, A.y-10);
+		ctx.fillText("B", B.x, B.y-10);
+		ctx.fillText("C", C.x, C.y-10);
+
+
+
+	}
+}
+
+
+function onMouseMove() 
+{
+	P.x = window.event.offsetX;
+	P.y = window.event.offsetY;
+	draw();
+}
+
+function init()
+{   
+	canvas = document.getElementById('mycanvas');
+	ctx = canvas.getContext('2d');
+	document.addEventListener( "mousemove", onMouseMove, true);
+	draw();
+} 
+
+
+
+</script>
+</head>
+<body onload="init();">
+	<canvas id="mycanvas" width="1000" height="700"></canvas>
+
+</body>
+</html>
+ 

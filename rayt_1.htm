@@ -1,0 +1,249 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+
+
+<script type="text/javascript">
+
+var canvas;
+var ctx;
+
+var OX = 200;
+var OY = 100;
+var DX = 700.0;
+var DY = 500.0;
+var fov = Math.PI / 4.0;
+var LookFrom = {x:0, y:6, z:-22} ;
+var LookAt = {x:3, y:0, z:0};
+var VUp = {x:0, y:1, z:0};
+var LightPos = { x: 0, y: 40, z: -30 };
+
+var obj = new Array();
+var cant_obj = 0;
+
+
+function init()
+{
+	obj[0] = { tipo: 0 , x:0,  y:0 , z:0 , r:3 };
+	obj[1] = { tipo: 0, x: 6, y: 0, z: 0, r: 3 };
+	obj[2] = { tipo: 0, x: -6, y: 0, z: -5, r: 2 };
+	obj[3] = { tipo: 0, x: 1, y: 2, z: -3, r: 4 };
+	cant_obj = 4;
+
+	return 0;
+}
+
+function add(u , v)
+{
+	return {x: u.x + v.x , y:u.y + v.y , z:u.z + v.z};	
+}
+
+
+function substract(u , v)
+{
+	return {x: u.x - v.x , y:u.y - v.y , z:u.z - v.z};	
+}
+
+function mul(u , k)
+{
+	return {x: u.x*k , y:u.y*k , z:u.z*k};	
+}
+
+function dot(u , v)
+{
+	return u.x*v.x+u.y*v.y+u.z*v.z;	
+}
+
+function cross( u , v)
+{
+	return { x:u.y*v.z-u.z*v.y , y: u.z*v.x-u.x*v.z , z:u.x*v.y-u.y*v.x};
+}
+
+function length(u)
+{
+	return Math.sqrt(u.x*u.x + u.y*u.y + u.z*u.z);	
+}
+
+function normalize(u)
+{
+	var len = length(u);
+	u.x /= len;	
+	u.y /= len;	
+	u.z /= len;	
+}
+
+function reflect(i, n) {
+
+    // v = i - 2 * dot(i, n) * n
+    return add(i, mul(n, -2 * dot(i, n)));
+}
+
+function saturate(x) {
+    if (x < 0)
+        x = 0;
+    else
+    if (x > 1)
+        x = 1;
+
+    return x;
+}
+
+// r = p0 +kD
+function ray_circle(p0,D,centro,radio)
+{
+
+	var rta = -1;
+	// verifico si interseta con la esfera
+	var aux = substract(p0 , centro);
+	var c = dot(aux,aux) - radio*radio;
+	var B = 2*dot(D,aux);
+	var disc = B*B - 4*c;
+	if(disc>=0)
+	{
+		var t0 = (-B-Math.sqrt(disc))/2;
+		var t1 = (-B+Math.sqrt(disc))/2;
+
+		if(t0<0)
+			rta = t1;
+		else
+		if(t0>t1)
+		{
+			var aux_t = t1;
+			t1 = t0;
+			t0 = aux_t;
+		}
+
+		// entra en la esfera por t0 y sale por t1. 
+		// se supone que el punto p0 NO esta dentro de la esfera, asi que t0, t1 son ambos positivos o ambos negativos
+		rta = t0;
+	}
+	return rta;
+}
+
+
+
+
+function draw() 
+{
+	if (canvas.getContext)
+	{
+		ctx.fillStyle = 'rgba(255,255,255,255)';
+		ctx.fillRect(0,0,1000,700);
+
+		var N = substract(LookAt , LookFrom);
+		normalize(N);
+		var V = cross(N,VUp);
+		normalize(V);
+		var U = cross(V,N);
+		var k = 2*Math.tan(fov/2);
+		var Dy = mul(U, (k*DY/DX));
+		var Dx = mul(V , k);
+		// direccion de cada rayo
+		// D = N + Dy*y + Dx*x;
+
+
+		for(x=0;x<DX;++x)
+		{
+			for(y=0;y<DY;++y)
+			{
+				var px = (x/DX-0.5)*2;
+				var py = (y/DY-0.5)*2;
+				var D = add (N , add(mul(Dy,py), mul(Dx,px)));
+				normalize(D);
+				var r = 0;
+				var g = 0;
+				var b = 0;
+
+				var dist_min = 100000;
+				var obj_hit = -1;
+				// ecuacion del rayo
+				// LookFrom + k*D 
+
+				for(i=0;i<cant_obj;++i)
+				{
+					if(obj[i].tipo == 0)
+					{
+						// verifico la interseccion con el circulo 
+						var c = {x:obj[i].x , y:obj[i].y , z:obj[i].z};		// centro de la esfera
+						var t = ray_circle(LookFrom,D,c,obj[i].r);
+						if(t>0 && t<dist_min)
+						{
+						    obj_hit = i;
+							dist_min = t;
+							//r = g = b = 120;
+                        }
+					}
+				}
+
+                
+				if (obj_hit != -1) {
+
+                    
+				    // toco contra un objeto, calculo el pto de interseccion
+				    var c1 = {x:obj[obj_hit].x , y:obj[obj_hit].y , z:obj[obj_hit].z};		// centro de la esfera
+				    var Ip1 = add(LookFrom, mul(D, dist_min));
+				    var N1 = substract(Ip1, c1);
+				    normalize(N1);
+				    var vLight = substract(LightPos,Ip1);
+				    normalize(vLight);
+
+				    // 1- calcula la luz diffusa
+				    var k_ld = 0.6;
+				    var LightDiffuse = saturate(dot(vLight,N1)*k_ld);
+	
+				    // 2- calcula la luz specular
+				    var ks = saturate(dot(reflect(vLight, N1), D));
+				    var k_ls = 0.5;
+				    var LightSpecular = Math.pow(ks,5)*k_ls;
+
+				    var k_la = 0.3;
+				    var Light = saturate(k_la + LightDiffuse) + LightSpecular;
+                    
+				    r = g = b = Light * 255;
+		
+				}
+                
+
+				ctx.fillStyle = "rgba("+Math.round(r)+","+Math.round(g)+","+Math.round(b)+","+"1)";
+				ctx.fillRect( OX + x, OY+DY - y, 1, 1 );
+			}
+		}
+	}
+}
+
+
+
+function doKeyDown(e) {
+    if (e.keyCode == 65) {
+        LookFrom.z += 5;
+        draw();
+    }
+    else
+    if (e.keyCode == 66) {
+        LookFrom.z -= 5;
+        draw();
+    }
+}
+
+
+
+function animate()
+{   
+	var a = init();
+	canvas = document.getElementById('mycanvas');
+	ctx = canvas.getContext('2d');
+	document.addEventListener("keydown", doKeyDown, true);
+	//setInterval(draw, 1000);
+	draw();
+} 
+
+
+
+
+</script>
+</head>
+<body onload="animate();">
+	<canvas id="mycanvas" width="1000" height="700"></canvas>
+</body>
+</html>
+ 

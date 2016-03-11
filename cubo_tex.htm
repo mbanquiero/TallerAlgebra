@@ -1,0 +1,297 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<script type="text/javascript">
+
+var canvas;
+var ctx;
+
+//
+// Ejemplo de proyeccion de un cubo
+//
+
+var dp = 1;
+
+// Vamos a utilizar la transformcion 
+// T(x,y,z) = (x/(z+d)*d,y/(z+d)*d)
+
+// La variable d representa la distancia entre el punto de vista y la pantalla
+// Hace que toda la escena se aleja de la camara 
+// usualmente d es similar Alto de la pantalla / 2
+// d se llama pespective distance
+
+var d = 600;
+
+// Tambiene tenemos que ajustar el origen para quede aprox. en el centro de pantalla
+// Para ello definimos: 
+var OX = 500;
+var OY = 350;
+
+// El aspect ratio es la relacion entre el ancho y el alto de la pantalla
+var aspect = 1024.0/768.0;
+
+
+function Transform_X(x,y,z)
+{
+	// Perspectiva: Proyecto a Screen Space
+	var xs = x/(z + d ) * d;
+	return xs;
+}
+
+function Transform_Y(x,y,z)
+{
+	// Perspectiva: Proyecto a Screen Space
+	var ys = y/(z + d ) * d * aspect;
+	return ys;
+}
+
+
+// Dibuja un pixel
+function DrawPixel(x,y,k)
+{
+	x = OX + x*k;
+	y = OY - y*k;
+	ctx.beginPath();
+	ctx.moveTo(x,y);
+	ctx.lineTo(x+k,y);
+	ctx.lineTo(x+k,y+k);
+	ctx.lineTo(x,y+k);
+	ctx.lineTo(x,y);
+	ctx.closePath();
+	ctx.fill();
+}
+
+
+function min(x,y)
+{
+	if(x <= y)
+		return x;
+	else
+		return y;
+}
+
+function max(x,y)
+{
+	if(x >= y)
+		return x;
+	else
+		return y;
+}
+
+
+function dotProduct(x1,y1, x2,y2)
+{
+	return  x1*y2 - y1*x2;
+}
+
+
+function barycentric_b( v1x, v1y , v2x , v2y ,v3x , v3y ,px,py)
+{
+	var b,g;
+
+	var A = v1x - v3x;
+	var B = v2x - v3x;
+	var C = v3x - px;
+
+	var D = v1y - v3y;
+	var E = v2y - v3y;
+	var F = v3y - py;
+
+	var G = 0;
+	var H = 0;
+	var I = 0;
+
+	if(A==0 && B==0)
+	{
+		var temp = A;
+		A = D;
+		D = temp;
+
+		temp = B;
+		B = E;
+		E = temp;
+
+		temp = C;
+		C = F;
+		F = temp;
+	}
+
+
+	b = (B*(F+I) - C*(E+H)) / (A*(E+H) - B*(D+G));
+	
+	//g = (A*(F+I) - C*(D+G)) / (B*(D+G) - A*(E+H));
+
+	return b;
+}
+
+function barycentric_g( v1x, v1y , v2x , v2y ,v3x , v3y ,px,py)
+{
+	var b,g;
+
+	var A = v1x - v3x;
+	var B = v2x - v3x;
+	var C = v3x - px;
+
+	var D = v1y - v3y;
+	var E = v2y - v3y;
+	var F = v3y - py;
+
+	var G = 0;
+	var H = 0;
+	var I = 0;
+
+	if(A==0 && B==0)
+	{
+		var temp = A;
+		A = D;
+		D = temp;
+
+		temp = B;
+		B = E;
+		E = temp;
+
+		temp = C;
+		C = F;
+		F = temp;
+	}
+
+
+	//b = (B*(F+I) - C*(E+H)) / (A*(E+H) - B*(D+G));
+	
+	g = (A*(F+I) - C*(D+G)) / (B*(D+G) - A*(E+H));
+
+	return g;
+}
+
+
+
+
+// Proyecta y Dibuja un triangulo
+function DrawTri(x0,y0,z0,x1,y1,z1,x2,y2,z2)
+{
+	// Primer punto
+	var X0 = Transform_X(x0,y0,z0);
+	var Y0 = Transform_Y(x0,y0,z0);
+	// Segundo punto
+	var X1 = Transform_X(x1,y1,z1);
+	var Y1 = Transform_Y(x1,y1,z1);
+	// Tercer punto
+	var X2 = Transform_X(x2,y2,z2);
+	var Y2 = Transform_Y(x2,y2,z2);
+	// Calculo el bounding rect
+	var min_x = min(X0,min(X1,X2));
+	var min_y = min(Y0,min(Y1,Y2));
+	var max_x = max(X0,max(X1,X2));
+	var max_y = max(Y0,max(Y1,Y2));
+
+	for( i = min_y ; i<=max_y ; ++ i)
+		for( j = min_x ; j<=max_x ; ++ j)
+		{
+			// Determino si el punto esta adentro del triangulo
+			var b = barycentric_b(X0,Y0,X1,Y1,X2,Y2,j,i);
+			var g = barycentric_g(X0,Y0,X1,Y1,X2,Y2,j,i);
+			if((b >= 0) && (g >= 0) && (b +g <= 1))
+			{
+				var a = 1 - b - g;
+
+				var red = (255 * a) | 0;
+				var green = (255 * b) | 0;
+				var blue = (255 * g) | 0;
+
+				ctx.fillStyle = 'rgba(' + red.toString() + ',' + green.toString() + ',' + blue.toString() + ',1)';
+				DrawPixel(j,i,dp);
+			}
+		}
+}
+
+
+// Dibuja una linea
+function Line3d(x0,y0,z0,x1,y1,z1)
+{
+
+	ctx.beginPath();
+
+	// Primer punto
+	var X = Transform_X(x0,y0,z0);
+	var Y = Transform_Y(x0,y0,z0);
+	ctx.moveTo(OX + X, OY - Y);
+
+	// Segundo punto
+	X = Transform_X(x1,y1,z1);
+	Y = Transform_Y(x1,y1,z1);
+	ctx.lineTo(OX + X, OY - Y);
+	ctx.closePath();
+	ctx.stroke();
+
+}
+
+
+function draw3dBox(dist)
+{
+	/*
+	var x0 = -120.0171425200471;
+	var y0 = -200;
+	var z0 = 279.45641073577593 + dist;
+
+	var x1 = 42.073549240394826;
+	var y1 = -200;
+	var z1 = 27.01511529340699+ dist;
+
+	var x2 = 42.073549240394826;
+	var y2 = 100;
+	var z2 = 27.01511529340699+ dist;
+	*/
+
+	var x0 = -120;
+	var y0 = -200;
+	var z0 = 500;
+
+	var x1 = 42;
+	var y1 = -200;
+	var z1 = 500;
+
+	var x2 = 42;
+	var y2 = 100;
+	var z2 = 500;
+
+	var x3 = -120;
+	var y3 = 100;
+	var z3 = 500;
+
+
+	DrawTri(x0,y0,z0,x1,y1,z1,x2,y2,z2);
+	DrawTri(x0,y0,z0,x3,y3,z3,x2,y2,z2);
+
+
+}
+
+
+function draw() 
+{
+	if (canvas.getContext)
+	{
+		ctx.fillStyle = 'rgba(255,255,255,1)';
+		ctx.fillRect(0,0,1000,800);
+		draw3dBox(0);
+
+	}
+}
+
+function animate()
+{   
+	canvas = document.getElementById('mycanvas');
+	ctx = canvas.getContext('2d');
+	setInterval(draw, 100);
+} 
+
+
+
+
+</script>
+</head>
+<body onload="animate();">
+	<canvas id="mycanvas" width="1000" height="700"></canvas>
+
+</body>
+</html>
+ 

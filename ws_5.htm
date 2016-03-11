@@ -1,0 +1,395 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+
+<script type="text/javascript">
+
+var canvas;
+var ctx;
+
+
+var time = 0;
+var elapsed_time = 0.01;
+
+// pelotita
+var vel = {x:-30,y:90};
+var pos = {x:300,y:100};
+var radio = 5;
+
+var circulos = new Array();
+var cant_circulos;
+
+var lineas = new Array();
+var cant_lineas;
+
+
+var OX = 200;
+var OY = 100;
+
+var DX = 400;
+var DY = 500;
+
+// imagen 
+var img = new Image(); 
+
+
+// Creo una escena con lineas y circulos
+function crear_escena()
+{
+	var fil = 0;
+	var col = 0;
+	var r = 10;
+	cant_circulos = 20;
+	cant_lineas = 0;
+	var rl = 40;
+	var flag = 1;
+	for(i=0;i<cant_circulos;++i)
+	{
+		circulos[i] = { x:col*100+50,  y: fil*100+50 , r:r , clr:'rgba(32,0,120,255)'};
+
+		flag = !flag;
+		if(flag)
+		{
+			lineas[cant_lineas++] = { x0:col*100+50-rl,  y0: fil*100+50 , x1:col*100+50 + rl,  y1: fil*100+50};
+			lineas[cant_lineas++] = { x0:col*100+50,  y0: fil*100+50-rl , x1:col*100+50,  y1: fil*100+50+rl};
+		}
+		
+
+		if(col++>2)
+		{
+
+			col = 0;
+			fil++;
+			if(r==10)
+				r = 5;
+			else
+				r = 10;
+		}
+	}
+}
+
+
+function add(u , v)
+{
+	return {x: u.x + v.x , y:u.y + v.y};	
+}
+
+
+
+// Algebra de vectores
+// -------------------------------------------------------------
+// Suma de Vectores 
+// w = u + v
+function add(u , v)
+{
+	return {x: u.x + v.x , y:u.y + v.y};	
+}
+
+
+// Resta de Vectores 
+// w = u - v
+function substract(u , v)
+{
+	return {x: u.x - v.x , y:u.y - v.y};	
+}
+
+// Multiplicacion de Vectores 
+// w = u * k
+function mul(u , k)
+{
+	return {x: u.x*k , y:u.y*k};	
+}
+
+
+// producto interno
+function dot(u , v)
+{
+	return u.x*v.x+u.y*v.y;	
+}
+
+// norma o modulo
+function length(u)
+{
+	return Math.sqrt(u.x*u.x + u.y*u.y);	
+}
+
+
+// normalizar
+function normalize(u)
+{
+	var len = length(u);
+	u.x /= len;	
+	u.y /= len;	
+}
+
+
+// devuelve el vector normal 
+function normal(u)
+{
+	return {x: -u.y , y:u.x};
+}
+
+// computar el vector de reflexion
+function reflect(i,n)
+{
+	
+	// v = i - 2 * dot(i, n) * n
+	return add(i , mul(n,-2*dot(i, n)));
+}
+
+
+function matriz_det(M)
+{
+	return M.a11*M.a22 - M.a12*M.a21;
+}
+
+
+function matriz_X(M,B)
+{
+	return M.a22*B.x-M.a12*B.y;
+}
+
+
+function matriz_Y(M,B)
+{
+	return M.a11*B.y-M.a21*B.x;
+}
+
+
+
+function ray_segment(p0,dir_0,p1,dir_1)
+{
+	var rta = -1;
+	var M = {	a11: dir_0.x , a12:-dir_1.x ,
+				a21: dir_0.y , a22:-dir_1.y
+			}
+
+	var det = matriz_det(M);
+	if(Math.abs(det)>0.0001)
+	{
+		var B = {x:p1.x-p0.x , y:p1.y-p0.y};
+		var t = matriz_X(M,B) / det;
+		var k = matriz_Y(M,B) / det;
+		if(k>=0 && k<=1 && t>=0 && t<=1)
+			rta = t;
+	}
+	return rta;
+}
+
+// r = p0 +kD
+function ray_circle(p0,Dir,centro,radio)
+{
+    // necesito que Dir este normalizado, si no esta puedo hacer esta transformacion
+    // r = p0 + (t*ld) * (Dir * (1/ld))
+    // r = p0 + k D
+    // donde k = t*ld
+    // D = Dir * (1/ld)
+
+
+    var ld = length(Dir);
+    var D = mul(Dir, 1 / ld);
+
+
+	var rta = -1;
+	// verifico si interseca con la esfera
+	var aux = add(p0 , mul(centro,-1));
+	var c = dot(aux,aux) - radio*radio;
+	var B = 2*dot(D,aux);
+	var disc = B*B - 4*c;
+	if(disc>=0)
+	{
+		var t0 = (-B-Math.sqrt(disc))/2;
+		var t1 = (-B+Math.sqrt(disc))/2;
+
+		if(t0>t1)
+		{
+			var aux_t = t1;
+			t1 = t0;
+			t0 = aux_t;
+		}
+        // entra en la esfera por t0 y sale por t1. 
+        // se supone que el punto p0 NO esta dentro de la esfera, asi que t0, t1 son ambos positivos o ambos negativos
+        // devuelve en base al D original, es decir hay que escalar segun ld
+        rta = t0 / ld;
+	}
+	return rta;
+}
+
+
+//---------------------------------------------------------------------------------------------
+
+
+function draw_obj() 
+{
+	// dibuja los objetos 
+	for(i=0; i<cant_circulos; ++i)
+	{
+
+		ctx.fillStyle = circulos[i].clr;
+		ctx.beginPath();
+		ctx.arc(OX + circulos[i].x, OY + circulos[i].y, circulos[i].r, 0, Math.PI*2,true); 
+		ctx.closePath();
+		ctx.fill();		
+	}
+
+	ctx.lineWidth = 1;
+	for(i=0; i<cant_lineas; ++i)
+	{
+
+		ctx.beginPath();
+		ctx.moveTo(OX + lineas[i].x0, OY + lineas[i].y0); 
+		ctx.lineTo(OX + lineas[i].x1, OY + lineas[i].y1); 
+		ctx.closePath();
+		ctx.stroke();		
+	}
+	ctx.lineWidth = 1;
+
+}
+
+
+
+function draw() 
+{
+	if (canvas.getContext)
+	{
+		ctx.fillStyle = 'rgba(255,255,255,255)';
+		ctx.fillRect(0,0,1000,700);
+		ctx.fillStyle = 'rgba(192,255,192,255)';
+		ctx.fillRect(OX ,OY ,DX,DY);
+		time+=elapsed_time;
+
+		// 1- integro la velocidad
+		var pos_ant = pos;
+		var D = mul(vel,elapsed_time);
+		pos = add(pos , D);
+
+		// 2- verifico los limites
+		if(pos.x<radio)
+		{
+			// rebote izquierdo
+			pos.x = 2*radio - pos.x;
+			vel.x *= -1;
+		}
+		else
+		if(pos.x>DX-radio)
+		{
+			// rebote derecho
+			pos.x = (DX-radio)*2 - pos.x;
+			vel.x *= -1;
+		}
+
+		if(pos.y<radio)
+		{
+			// rebote abajo
+			pos.y = 2*radio-pos.y;
+			vel.y *= -1;
+		}
+		else
+		if(pos.y>DY-radio)
+		{
+			// rebote arriba
+			pos.y = (DY-radio)*2-pos.y;
+			vel.y *= -1;
+		}
+
+		// quiero ir de la pos_ant a la pos nueva
+		// Verifico las intersecciones contra todos los objetos
+		for(i=0;i<cant_circulos;++i)
+		{
+			// verifico la interseccion con el circulo i
+			var c = {x:circulos[i].x , y:circulos[i].y};		// centro de la esfera
+			var t = ray_circle(pos_ant,D,c,circulos[i].r+radio);
+			if(t>0 && t<1)
+			{
+				D = mul(D,t);
+				// Calculo el punto de interseccion
+				var Ip= add(pos_ant , D);
+				// calculo la normal en el pto de interseccion
+				var N = substract(Ip,c);
+				normalize(N);
+				// Calculo la direccion de rebote
+				D = reflect(D,N);
+				// Actualizo la nueva posicion, utilizando el tiempo en restante, para aplicarlo
+				// a la direccion de rebote
+				var rtime = elapsed_time*(1-t);		// tiempo restante
+				pos = add(Ip , mul(D,rtime));
+				// actualizo la velocidad
+				normalize(D);
+				vel = mul(D,length(vel));
+				// no soporta mas colisiones en el mismo frame
+				i = cant_circulos;
+			}
+		}
+
+
+
+		for(i=0;i<cant_lineas;++i)
+		{
+
+			var p1 = {x:lineas[i].x0 , y:lineas[i].y0};
+			var dir_1 = {x:lineas[i].x1-p1.x , y:lineas[i].y1-p1.y};
+			// dezplazo la recta para tener en cuenta el radio de la bolita
+			var dir_N = normal(dir_1);
+			normalize(dir_N);
+			// puedo desplazar en sentido positivo o negativo, pero solo interesa el sentido
+			// que se acerca a la pelotita, para ello uso el hecho que angulo entre la normal y la direccion
+			// de la pelotita tiene que ser >180 grados si estan en la conf. correcta
+			var desf;
+			if(dot(dir_N,D)<0)
+				desf = mul(dir_N,radio);
+			else
+				desf = mul(dir_N,-radio);
+			p1 = add(p1 , desf);
+
+			var t = ray_segment(pos_ant,D,p1,dir_1);
+			if(t>0 && t<1)
+			{
+				D = mul(D,t);
+				// Calculo el punto de interseccion
+				var Ip= add(pos_ant , D);
+				// calculo la normal en el pto de interseccion
+				var N = normal(dir_1);
+				normalize(N);
+				// Calculo la direccion de rebote
+				D = reflect(D,N);
+				// Actualizo la nueva posicion, utilizando el tiempo en restante, para aplicarlo
+				// a la direccion de rebote
+				var rtime = elapsed_time*(1-t);		// tiempo restante
+				pos = add(Ip , mul(D,rtime));
+				// actualizo la velocidad
+				normalize(D);
+				vel = mul(D,length(vel));
+				// no soporta mas colisiones en el mismo frame
+				i = cant_lineas;
+			}
+		}
+
+		//3- dibujo los objetos de la escena
+		draw_obj();
+
+		// 4- dibujo la bolita
+		ctx.drawImage(img,OX + pos.x - radio, OY + pos.y - radio, 2*radio,2*radio);
+
+
+	}
+}
+
+function animate()
+{   
+	canvas = document.getElementById('mycanvas');
+	ctx = canvas.getContext('2d');
+	img.src = 'ball.png';
+	crear_escena();
+	setInterval(draw, 1);
+} 
+
+
+
+
+</script>
+</head>
+<body onload="animate();">
+	<canvas id="mycanvas" width="1000" height="700"></canvas>
+</body>
+</html>
+ 

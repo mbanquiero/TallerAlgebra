@@ -1,0 +1,194 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<script type="text/javascript">
+
+var canvas;
+var ctx;
+
+//
+// Ejemplo de proyeccion de un cubo
+//
+
+// Vamos a utilizar la transformcion 
+// T(x,y,z) = (x/z,y/z)
+
+// Tambien tenemos que escalar a pixeles, para ello definimos una cierta escala arbitraria
+var escala = 100;
+
+
+// Tambiene tenemos que ajustar el origen para quede aprox. en el centro de pantalla
+// Para ello definimos: 
+var OX = 500;
+var OY = 350;
+
+// El aspect ratio es la relacion entre el ancho y el alto de la pantalla
+var aspect = 1024.0/768.0;
+
+
+// en este ejemplo vamos a usar la variable tiempo t para acercar el cubo hacia
+// la camara
+// Eso se logra simplemente restando al valor de z un valor que depende del tiempo.
+
+var t = 0;
+
+function Transform_X(x,y,z)
+{
+	// Perspectiva: Proyecto a Screen Space
+	var xs = x/z;
+
+	return xs*escala;
+}
+
+function Transform_Y(x,y,z)
+{
+	// Perspectiva: Proyecto a Screen Space
+	var ys = y/z;
+
+	return ys * escala * aspect;
+}
+
+
+// Proyecta y Dibuja un triangulo
+function DrawTri(x0,y0,z0,x1,y1,z1,x2,y2,z2)
+{
+
+	ctx.beginPath();
+
+	// Primer punto
+	var X = Transform_X(x0,y0,z0);
+	var Y = Transform_Y(x0,y0,z0);
+	ctx.moveTo(OX + X, OY - Y);
+
+	// Segundo punto
+	X = Transform_X(x1,y1,z1);
+	Y = Transform_Y(x1,y1,z1);
+	ctx.lineTo(OX + X, OY - Y);
+
+	// Tercer punto
+	X = Transform_X(x2,y2,z2);
+	Y = Transform_Y(x2,y2,z2);
+	ctx.lineTo(OX + X, OY - Y);
+
+
+	ctx.closePath();
+	ctx.fill();
+}
+
+
+// Dibuja una linea
+function Line3d(x0,y0,z0,x1,y1,z1)
+{
+
+	ctx.beginPath();
+
+	// Primer punto
+	var X = Transform_X(x0,y0,z0);
+	var Y = Transform_Y(x0,y0,z0);
+	ctx.moveTo(OX + X, OY - Y);
+
+	// Segundo punto
+	X = Transform_X(x1,y1,z1);
+	Y = Transform_Y(x1,y1,z1);
+	ctx.lineTo(OX + X, OY - Y);
+	ctx.closePath();
+	ctx.stroke();
+
+}
+
+
+function draw3dBox(dist)
+{
+	var x0 = -120.0171425200471;
+	var x1 = 42.073549240394826;
+	var x2 = 42.073549240394826;
+	var x3 = -120.0171425200471;
+	var x4 = 132.42415292232187;
+	var x5 = 294.5148446827638;
+	var x6 = 294.5148446827638;
+	var x7 = 132.42415292232187;
+
+	var y0 = -200;
+	var y1 = -200;
+	var y2 = 100;
+	var y3 = 100;
+	var y4 = -200;
+	var y5 = -200;
+	var y6 = 100;
+	var y7 = 100;
+
+	var z0 = 279.45641073577593 + dist;
+	var z1 = 27.01511529340699+ dist;
+	var z2 = 27.01511529340699+ dist;
+	var z3 = 279.45641073577593+ dist;
+	var z4 = 441.54710249621786+ dist;
+	var z5 = 189.1058070538489+ dist;
+	var z6 = 189.1058070538489+ dist;
+	var z7 = 441.54710249621786+ dist;
+
+	ctx.fillStyle = 'rgba(120,255,120,0.4)';
+	DrawTri(x0,y0,z0,x1,y1,z1,x2,y2,z2);
+	DrawTri(x0,y0,z0,x2,y2,z2,x3,y3,z3);
+
+
+	ctx.fillStyle = 'rgba(255,120,120,0.4)';
+	DrawTri(x4,y4,z4,x5,y5,z5,x6,y6,z6);
+	DrawTri(x4,y4,z4,x6,y6,z6,x7,y7,z7);
+
+	ctx.fillStyle = 'rgba(255,255,120,0.4)';
+	DrawTri(x0,y0,z0,x1,y1,z1,x5,y5,z5);
+	DrawTri(x0,y0,z0,x5,y5,z5,x4,y4,z4);
+
+	ctx.fillStyle = 'rgba(120,120,120,0.4)';
+	DrawTri(x3,y3,z3,x2,y2,z2,x6,y6,z6);
+	DrawTri(x3,y3,z3,x6,y6,z6,x7,y7,z7);
+
+
+ 	Line3d(x0,y0,z0, x1,y1,z1);
+ 	Line3d(x1,y1,z1, x2,y2,z2);
+ 	Line3d(x2,y2,z2, x3,y3,z3);
+ 	Line3d(x3,y3,z3, x0,y0,z0);
+	
+ 	Line3d(x4,y4,z4, x5,y5,z5);
+ 	Line3d(x5,y5,z5, x6,y6,z6);
+ 	Line3d(x6,y6,z6, x7,y7,z7);
+ 	Line3d(x7,y7,z7, x4,y4,z4);
+
+ 	Line3d(x0,y0,z0, x4,y4,z4);
+ 	Line3d(x1,y1,z1, x5,y5,z5);
+ 	Line3d(x2,y2,z2, x6,y6,z6);
+ 	Line3d(x3,y3,z3, x7,y7,z7);
+
+}
+
+
+function draw() 
+{
+	if (canvas.getContext)
+	{
+		ctx.fillStyle = 'rgba(255,255,255,1)';
+		ctx.fillRect(0,0,1000,800);
+		t+=5;
+		draw3dBox(100-t);
+
+	}
+}
+
+function animate()
+{   
+	canvas = document.getElementById('mycanvas');
+	ctx = canvas.getContext('2d');
+	setInterval(draw, 100);
+} 
+
+
+
+
+</script>
+</head>
+<body onload="animate();">
+	<canvas id="mycanvas" width="1000" height="700"></canvas>
+
+</body>
+</html>
+ 

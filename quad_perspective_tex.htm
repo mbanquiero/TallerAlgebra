@@ -1,0 +1,317 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<script type="text/javascript">
+
+var canvas;
+var ctx;
+
+//
+// Ejemplo de Perspective Correct Texture Mapping
+//
+
+// Tamaño del pixel
+var dp = 1;
+
+// Vamos a utilizar la transformcion 
+// T(x,y,z) = (x/z,y/z)
+
+// Tambiene tenemos que ajustar el origen para quede aprox. en el centro de pantalla
+// Para ello definimos: 
+var OX = 500;
+var OY = 350;
+
+// El aspect ratio es la relacion entre el ancho y el alto de la pantalla
+var aspect = 1024.0/768.0;
+
+function Transform_X(x,y,z)
+{
+	// Perspectiva: Proyecto a Screen Space
+	var xs = x / z;
+	return xs;
+}
+
+function Transform_Y(x,y,z)
+{
+	// Perspectiva: Proyecto a Screen Space
+	var ys = y / z;
+	return ys;
+}
+
+
+function Transform_Z(z)
+{
+	return z;
+}
+
+// Dibuja un pixel
+function DrawPixel(x,y,k)
+{
+	x = OX + x*k;
+	y = OY - y*k;
+	ctx.beginPath();
+	ctx.moveTo(x,y);
+	ctx.lineTo(x+k,y);
+	ctx.lineTo(x+k,y+k);
+	ctx.lineTo(x,y+k);
+	ctx.lineTo(x,y);
+	ctx.closePath();
+	ctx.fill();
+}
+
+
+function min(x,y)
+{
+	if(x <= y)
+		return x;
+	else
+		return y;
+}
+
+function max(x,y)
+{
+	if(x >= y)
+		return x;
+	else
+		return y;
+}
+
+
+
+function barycentric_b( v1x, v1y , v2x , v2y ,v3x , v3y ,px,py)
+{
+	var b,g;
+
+	var A = v1x - v3x;
+	var B = v2x - v3x;
+	var C = v3x - px;
+
+	var D = v1y - v3y;
+	var E = v2y - v3y;
+	var F = v3y - py;
+
+	var G = 0;
+	var H = 0;
+	var I = 0;
+
+	if(A==0 && B==0)
+	{
+		var temp = A;
+		A = D;
+		D = temp;
+
+		temp = B;
+		B = E;
+		E = temp;
+
+		temp = C;
+		C = F;
+		F = temp;
+	}
+
+
+	b = (B*(F+I) - C*(E+H)) / (A*(E+H) - B*(D+G));
+	//g = (A*(F+I) - C*(D+G)) / (B*(D+G) - A*(E+H));
+	return b;
+}
+
+function barycentric_g( v1x, v1y , v2x , v2y ,v3x , v3y ,px,py)
+{
+	var b,g;
+
+	var A = v1x - v3x;
+	var B = v2x - v3x;
+	var C = v3x - px;
+
+	var D = v1y - v3y;
+	var E = v2y - v3y;
+	var F = v3y - py;
+
+	var G = 0;
+	var H = 0;
+	var I = 0;
+
+	if(A==0 && B==0)
+	{
+		var temp = A;
+		A = D;
+		D = temp;
+
+		temp = B;
+		B = E;
+		E = temp;
+
+		temp = C;
+		C = F;
+		F = temp;
+	}
+
+
+	//b = (B*(F+I) - C*(E+H)) / (A*(E+H) - B*(D+G));
+	g = (A*(F+I) - C*(D+G)) / (B*(D+G) - A*(E+H));
+	return g;
+}
+
+
+function tex2d(u, v)
+{
+	u = (u*10) | 0;
+	v = (v*10) | 0;
+
+	if((u+v)%2==0)
+		return 'rgba(255,0,255,255)';		
+	else
+		return 'rgba(0,0,0,255)';
+
+}
+
+
+// Proyecta y Dibuja un triangulo
+function DrawTri(	x0,y0,z0,r0,g0,b0,u0,v0,
+					x1,y1,z1,r1,g1,b1,u1,v1,
+					x2,y2,z2,r2,g2,b2,u2,v2)
+{
+	// Primer punto
+	var X0 = Transform_X(x0,y0,z0);
+	var Y0 = Transform_Y(x0,y0,z0);
+	var Z0 = Transform_Z(z0);
+	// Segundo punto
+	var X1 = Transform_X(x1,y1,z1);
+	var Y1 = Transform_Y(x1,y1,z1);
+	var Z1 = Transform_Z(z1);
+	// Tercer punto
+	var X2 = Transform_X(x2,y2,z2);
+	var Y2 = Transform_Y(x2,y2,z2);
+	var Z2 = Transform_Z(z2);
+	// Calculo el bounding rect
+	var min_x = min(X0,min(X1,X2));
+	var min_y = min(Y0,min(Y1,Y2));
+	var max_x = max(X0,max(X1,X2));
+	var max_y = max(Y0,max(Y1,Y2));
+
+	// perspective correct interpolation
+	// z no es lineal con respecto a xs y ys, pero resulta lineal con repsecto a 1/xs y a 1/ys
+	// en lugar de interpolar z directamente, interpolamos los reciprocos (hyperbolic interpolation)
+	var rz0 = 1/Z0;
+	var rz1 = 1/Z1;
+	var rz2 = 1/Z2;
+
+	u0 /= Z0;
+	v0 /= Z0;
+
+	u1 /= Z1;
+	v1 /= Z1;
+
+	u2 /= Z2;
+	v2 /= Z2;
+
+
+	for( i = min_y ; i<=max_y ; ++ i)
+		for( j = min_x ; j<=max_x ; ++ j)
+		{
+			// Determino si el punto esta adentro del triangulo
+			var b = barycentric_b(X0,Y0,X1,Y1,X2,Y2,j,i);
+			var g = barycentric_g(X0,Y0,X1,Y1,X2,Y2,j,i);
+			if((b >= 0) && (g >= 0) && (b +g <= 1))
+			{
+				var a = 1 - b - g;
+
+				// hiperbolic interpoloation (perspective correct)
+				var rz = rz0*b + rz1*g + rz2*a;
+				var tu = (u0*b + u1*g + u2*a) / rz;
+				var tv = (v0*b + v1*g + v2*a) / rz;
+				// obtengo el valor de la textura
+				ctx.fillStyle = tex2d(tu,tv);
+				// dibujo el pixel
+				DrawPixel(j,i,dp);
+			}
+		}
+}
+
+
+
+function drawQuad()
+{
+	var x0 = -320;
+	var y0 = -200;
+	var z0 = 1;
+	var u0 = 0;
+	var v0 = 0;
+	var r0 = 255;
+	var g0 = 0;
+	var b0 = 0;
+
+	var x1 = 320;
+	var y1 = -200;
+	var z1 = 1;
+	var u1 = 1;
+	var v1 = 0;
+	var r1 = 0;
+	var g1 = 255;
+	var b1 = 0;
+
+
+	var x2 = 320;
+	var y2 = 200;
+	var z2 = 5;
+	var u2 = 1;
+	var v2 = 1;
+	var r2 = 0;
+	var g2 = 0;
+	var b2 = 255;
+
+	var x3 = -320;
+	var y3 = 200;
+	var z3 = 5;
+	var u3 = 1;
+	var v3 = 0;
+	var r3 = 0;
+	var g3 = 0;
+	var b3 = 0;
+
+
+	DrawTri(x0,y0,z0,r0,g0,b0,u0,v0,
+			x1,y1,z1,r1,g1,b1,u1,v1,
+			x2,y2,z2,r2,g2,b2,u2,v2);
+	
+	
+	DrawTri(x0,y0,z0,r0,g0,b0,u0,v0,
+			x3,y3,z3,r3,g3,b3,u3,v3,
+			x2,y2,z2,r2,g2,b2,u2,v2);
+
+
+}
+
+
+function draw() 
+{
+	if (canvas.getContext)
+	{
+		ctx.fillStyle = 'rgba(240,240,240,255)';
+		ctx.fillRect(0,0,1000,800);
+
+		var mark_start = Date.now();
+		drawQuad(0);
+		alert('Duration of task: ' + (Date.now() - mark_start));
+
+	}
+}
+
+function animate()
+{   
+	canvas = document.getElementById('mycanvas');
+	ctx = canvas.getContext('2d');
+	setInterval(draw, 100);
+} 
+
+
+
+
+</script>
+</head>
+<body onload="animate();">
+	<canvas id="mycanvas" width="1000" height="700"></canvas>
+
+</body>
+</html>
+ 

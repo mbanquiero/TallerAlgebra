@@ -1,0 +1,271 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<script type="text/javascript">
+
+var canvas;
+var ctx;
+
+//
+// Ejemplo de una superficie parametrica
+//
+
+// Se tienen 2 parametros u y v, que se hacen variar desde cierto valor inicial a otro final
+// u = u0..u1 ; v = v0..v1
+// Luego se definen 3 funciones reales: 
+// Fx(u,v) , Fy(u,v) , Fz(u,v) 
+// Para cada valor de uv se obtiene el correspondiente punto
+//  P(u,v) = (Fx,Fy,Fz) (u,v) 
+// que se utiliza para generar una superficie 
+// Por ultimo se proyecta la superficie usualmente. 
+
+
+var t = 0;			// tiempo
+var aspect = 1;
+var escala = 100;
+
+var d = 100;
+var OX = 500;
+var OY = 550;
+
+// Matriz de View (Pasa de World Space a Camera Space)
+var m11 = 1;		var m12 = 0;		var m13 = 0;
+var m21 = 0;		var m22 = 1;		var m23 = 0;
+var m31 = 0.141;	var m32 = 0.141;	var m33 = 0.707;
+var tras_x = 0;		var tras_y = 0;		var tras_z = 0;
+
+
+
+function Transform_X(x,y,z)
+{
+	// Paso de World Space a Camera Space 
+	var xc = x*m11 + y*m21 + z*m31 + tras_x;
+	var yc = x*m12 + y*m22 + z*m32 + tras_y;
+	var zc = x*m13 + y*m23 + z*m33 + tras_z;
+	// Perspectiva: Proyecto a Screen Space
+	var xs = xc/(zc + d ) * d *escala;
+	return xs;
+}
+
+function Transform_Y(x,y,z)
+{
+	// Paso de World Space a Camera Space 
+	var xc = x*m11 + y*m21 + z*m31 + tras_x;
+	var yc = x*m12 + y*m22 + z*m32 + tras_y;
+	var zc = x*m13 + y*m23 + z*m33 + tras_z;
+	// Perspectiva: Proyecto a Screen Space
+	var ys = yc/(zc + d ) * d *escala * aspect;
+	return ys;
+}
+
+
+// Proyecta y Dibuja un triangulo
+function DrawTri(x0,y0,z0,x1,y1,z1,x2,y2,z2)
+{
+
+	ctx.beginPath();
+
+	// Primer punto
+	var X = Transform_X(x0,y0,z0);
+	var Y = Transform_Y(x0,y0,z0);
+	ctx.moveTo(OX + X, OY - Y);
+
+	// Segundo punto
+	X = Transform_X(x1,y1,z1);
+	Y = Transform_Y(x1,y1,z1);
+	ctx.lineTo(OX + X, OY - Y);
+
+	// Tercer punto
+	X = Transform_X(x2,y2,z2);
+	Y = Transform_Y(x2,y2,z2);
+	ctx.lineTo(OX + X, OY - Y);
+
+
+	ctx.closePath();
+	ctx.fill();
+	ctx.stroke();
+}
+
+
+// Dibuja una linea
+function Line3d(x0,y0,z0,x1,y1,z1)
+{
+
+	ctx.beginPath();
+
+	// Primer punto
+	var X = Transform_X(x0,y0,z0);
+	var Y = Transform_Y(x0,y0,z0);
+	ctx.moveTo(OX + X, OY - Y);
+
+	// Segundo punto
+	X = Transform_X(x1,y1,z1);
+	Y = Transform_Y(x1,y1,z1);
+	ctx.lineTo(OX + X, OY - Y);
+	ctx.closePath();
+	ctx.stroke();
+
+}
+
+
+// Botella de Klein
+function Fx(u,v)
+{
+	
+	return -2.0/15.0*Math.cos(u)*(3.0*Math.cos(v) + 5.0*Math.sin(u)*Math.cos(v)*Math.cos(u)-30.0*Math.sin(u)
+				-60.0*Math.sin(u)*Math.pow(Math.cos(u),6.0)+90.0*Math.sin(u)*Math.pow(Math.cos(u),4.0));
+
+}
+
+function Fy(u,v)
+{
+
+	return -1.0/15.0*Math.sin(u)*(80.0*Math.cos(v)*Math.pow(Math.cos(u),7.0)*Math.sin(u) + 48.0*Math.cos(v)*Math.pow(Math.cos(u),6.0)
+						   -80.0*Math.cos(v)*Math.pow(Math.cos(u),5.0)*Math.sin(u) - 48.0*Math.cos(v)*Math.pow(Math.cos(u),4.0)
+						   -5.0*Math.cos(v)*Math.pow(Math.cos(u),3.0)*Math.sin(u) - 3.0*Math.cos(v)*Math.pow(Math.cos(u),2.0)
+						   +5.0*Math.sin(u)*Math.cos(v)*Math.cos(u) + 3.0*Math.cos(v) -60.0*Math.sin(u));
+
+}
+
+function Fz(u,v)
+{
+	return 2.0/15.0*Math.sin(v)*(3.0 + 5.0*Math.sin(u)*Math.cos(v));
+	
+}
+
+function DrawParametricSurface()
+{
+	var u0 = -3.1415;
+	var u1 = 3.1415;
+	var v0 = 3.1415;
+	var v1 = 2*3.1415;
+	var du = (u1-u0)/50.0;
+	var dv = (v1-v0)/50.0;
+
+	for(var i=0;i<50;++i)
+		for(var j=0;j<50;++j)
+		{
+
+			var u = u0 + du*i;
+			var v = v0 + dv*j;
+			var u1 = u0 + du*(i+1);
+			var v1 = v0 + dv*(j+1);
+
+			var x0 = Fx(u,v);
+			var y0 = Fy(u,v);
+			var z0 = Fz(u,v);
+
+			var x1 = Fx(u1,v);
+			var y1 = Fy(u1,v);
+			var z1 = Fz(u1,v);
+
+			var x2 = Fx(u1,v1);
+			var y2 = Fy(u1,v1);
+			var z2 = Fz(u1,v1);
+
+			var x3 = Fx(u,v1);
+			var y3 = Fy(u,v1);
+			var z3 = Fz(u,v1);
+
+			DrawTri(x0,y0,z0,x1,y1,z1,x2,y2,z2);
+			DrawTri(x0,y0,z0,x3,y3,z3,x2,y2,z2);
+			
+			/*Line3d(x0,y0,z0,x1,y1,z1);
+			Line3d(x1,y1,z1,x2,y2,z2);
+			Line3d(x2,y2,z2,x3,y3,z3);
+			Line3d(x3,y3,z3,x0,y0,z0);
+			*/
+
+		}
+
+}
+
+
+function draw() 
+{
+	if (canvas.getContext)
+	{
+		ctx.fillStyle = 'rgba(255,255,255,1)';
+		ctx.fillRect(0,0,1000,800);
+		ctx.fillStyle = 'rgba(255,0,0,1)';
+		t+=0.3;
+
+		// Quiero mirar el centro de la palmera
+		// LA = Look At = Objetivo = a donde apunta la camara
+		var LAx = 0;
+		var LAy = 0;
+		var LAz = 0;
+
+		// Calculo el punto de vista = la posicion del observador (camara u ojo) 
+		// girando alrededor del centro de la palmera
+		var LFx = LAx + Math.sin(t) * 2;
+		var LFy = LAy ;
+		var LFz = LAz + Math.cos(t) * 2;
+
+		// Calculo la transformacion para pasar todo al espacio del camara
+		// La Z es la direccion hacia la camara,
+		// La Y es la direccion hacia arriba
+		// La X es la direccion hacia la derecha.
+
+		// Eje z = normalizado( LA - LF)
+		var Zx = LAx - LFx;
+		var Zy = LAy - LFy;
+		var Zz = LAz - LFz;
+		var len = Math.sqrt(Zx*Zx + Zy*Zy + Zz*Zz);
+		Zx /= len;
+		Zy /= len;
+		Zz /= len;
+
+		// Eje x = normalizado ( cross ( Up = (0,1,0) , Eje z))
+		var Xx = Zz;
+		var Xy = 0;
+		var Xz = -Zx;
+		len = Math.sqrt(Xx*Xx + Xy*Xy + Xz*Xz);
+		Xx /= len;
+		Xy /= len;
+		Xz /= len;
+
+		// cross ( Eje z , Eje x)
+		var Yx = Zy*Xz-Zz*Xy;
+		var Yy = Zz*Xx-Zx*Xz;
+		var Yz = Zx*Xy-Zy*Xx;
+
+		// Ya tengo las 3 direcciones, son una Base Ortonormal de R3 
+		// la matriz creada asi es la matriz de cambio de bases. 
+		// Armo la matriz de View: Parte de Rotacion
+		m11 = Xx;		m12 = Yx;		m13 = Zx;	
+		m21 = Xy;		m22 = Yy;		m23 = Zy;
+		m31 = Xz;		m32 = Yz;		m33 = Zz;
+
+		// Parte de Translacion
+		// -dot (x , LA)
+		tras_x = - (Xx*LAx + Xy*LAy + Xz*LAz);
+		// -dot (y , LA)
+		tras_y = - (Yx*LAx + Yy*LAy + Yz*LAz);
+		// -dot (z , LA)
+		tras_z = - (Zx*LAx + Zy*LAy + Zz*LAz);
+
+
+		DrawParametricSurface();
+
+	}
+}
+
+function animate()
+{   
+	canvas = document.getElementById('mycanvas');
+	ctx = canvas.getContext('2d');
+	setInterval(draw, 100);
+} 
+
+
+
+
+</script>
+</head>
+<body onload="animate();">
+	<canvas id="mycanvas" width="1000" height="700"></canvas>
+
+</body>
+</html>
+ 
